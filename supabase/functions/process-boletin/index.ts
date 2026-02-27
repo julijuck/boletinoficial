@@ -390,7 +390,7 @@ serve(async (req) => {
         
         const emailPromises = batch.map(async (subscriber) => {
           const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
-          const html = buildEmailHtml(summarizedEntries, today, unsubscribeUrl);
+          const html = buildEmailHtml(summarizedEntries, editionDate, unsubscribeUrl);
 
           try {
             const res = await fetch("https://api.resend.com/emails", {
