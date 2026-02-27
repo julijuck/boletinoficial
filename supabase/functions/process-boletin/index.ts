@@ -276,10 +276,12 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase config");
     if (!FIRECRAWL_API_KEY) throw new Error("FIRECRAWL_API_KEY not configured");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -343,25 +345,57 @@ serve(async (req) => {
       subscribers_count: subscribers?.length || 0,
     });
 
-    // 5. Send emails via Resend (using LOVABLE_API_KEY through edge function HTTP)
+    // 5. Send emails via Resend
+    const formattedDate = new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    let emailsSent = 0;
     if (subscribers && subscribers.length > 0) {
       const SITE_URL = Deno.env.get("SITE_URL") || "https://id-preview--b4e424c5-b131-4723-a39b-ecab890cc8be.lovable.app";
       
-      for (const subscriber of subscribers) {
-        const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
-        const html = buildEmailHtml(summarizedEntries, today, unsubscribeUrl);
+      const batchSize = 50;
+      for (let i = 0; i < subscribers.length; i += batchSize) {
+        const batch = subscribers.slice(i, i + batchSize);
+        
+        const emailPromises = batch.map(async (subscriber) => {
+          const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
+          const html = buildEmailHtml(summarizedEntries, today, unsubscribeUrl);
 
-        // Send via Supabase's built-in email (using admin client)
-        // We'll use a simple HTTP approach with Resend via LOVABLE_API_KEY
-        try {
-          // For now, we log the email content - actual sending needs an email service
-          console.log(`Would send email to ${subscriber.email}`);
-          // TODO: Integrate actual email sending service
-        } catch (emailErr) {
-          console.error(`Failed to send email to ${subscriber.email}:`, emailErr);
-        }
+          try {
+            const res = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "Boletín Oficial Resumen <boletin@resend.dev>",
+                to: [subscriber.email],
+                subject: `📰 Boletín Oficial - ${formattedDate}`,
+                html,
+              }),
+            });
+            if (res.ok) {
+              emailsSent++;
+            } else {
+              const errText = await res.text();
+              console.error(`Failed to send to ${subscriber.email}: ${errText}`);
+            }
+          } catch (emailErr) {
+            console.error(`Error sending to ${subscriber.email}:`, emailErr);
+          }
+        });
+
+        await Promise.all(emailPromises);
       }
+      
+      console.log(`Sent ${emailsSent}/${subscribers.length} emails`);
     }
+
 
     return new Response(
       JSON.stringify({
