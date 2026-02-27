@@ -81,7 +81,6 @@ const EmailPreview = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("editions")
           .select("edition_date, summary_content")

@@ -17,7 +17,6 @@ const Unsubscribe = () => {
 
     const unsubscribe = async () => {
       try {
-        const { supabase } = await import("@/integrations/supabase/client");
         const { error } = await supabase
           .from("subscribers")
           .update({ is_active: false })
