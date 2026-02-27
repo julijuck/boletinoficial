@@ -427,7 +427,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        date: today,
+        date: editionDate,
         entries_count: summarizedEntries.length,
         subscribers_notified: subscribers?.length || 0,
       }),
