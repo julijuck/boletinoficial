@@ -126,7 +126,7 @@ async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown
   
   // Extract date - may be split across lines like "Edición del\n**26 de Febrero de 2026**"
   const normalizedMarkdown = markdown.replace(/\n+/g, " ");
-  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del\s+\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
+  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
   
   // Debug: log portion around "dici" to find the date format
   const idx = markdown.toLowerCase().indexOf("dici");
