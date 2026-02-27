@@ -16,6 +16,7 @@ const Index = () => {
 
     setIsLoading(true);
     try {
+      const { supabase } = await import("@/integrations/supabase/client");
       const { error } = await supabase
         .from("subscribers")
         .insert({ email: email.trim().toLowerCase() });

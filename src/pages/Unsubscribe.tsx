@@ -15,12 +15,16 @@ const Unsubscribe = () => {
     }
 
     const unsubscribe = async () => {
-      const { error } = await supabase
-        .from("subscribers")
-        .update({ is_active: false })
-        .eq("unsubscribe_token", token);
-
-      setStatus(error ? "error" : "success");
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { error } = await supabase
+          .from("subscribers")
+          .update({ is_active: false })
+          .eq("unsubscribe_token", token);
+        setStatus(error ? "error" : "success");
+      } catch {
+        setStatus("error");
+      }
     };
 
     unsubscribe();
