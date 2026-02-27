@@ -84,7 +84,22 @@ function parseBoletinMarkdown(markdown: string): NormEntry[] {
   return entries;
 }
 
-async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; date: string }> {
+function parseSpanishDate(dateStr: string): string | null {
+  const months: Record<string, string> = {
+    enero: "01", febrero: "02", marzo: "03", abril: "04",
+    mayo: "05", junio: "06", julio: "07", agosto: "08",
+    septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+  };
+  const match = dateStr.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (!match) return null;
+  const day = match[1].padStart(2, "0");
+  const month = months[match[2].toLowerCase()];
+  const year = match[3];
+  if (!month) return null;
+  return `${year}-${month}-${day}`;
+}
+
+async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   console.log("Scraping Boletín Oficial...");
   
   const response = await fetch(FIRECRAWL_URL, {
@@ -110,10 +125,12 @@ async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown
   const markdown = data.data?.markdown || data.markdown || "";
   
   // Extract date from the page
-  const dateMatch = markdown.match(/Edición del\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i);
-  const today = new Date().toISOString().split("T")[0];
+  const dateMatch = markdown.match(/Edici[oó]n del\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i);
+  const scrapedDate = dateMatch ? parseSpanishDate(dateMatch[1]) : null;
   
-  return { markdown, date: today };
+  console.log(`Scraped date from page: ${scrapedDate || "NOT FOUND"}`);
+  
+  return { markdown, scrapedDate };
 }
 
 async function generateSummaries(
