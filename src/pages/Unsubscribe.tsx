@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { MailX, Loader2 } from "lucide-react";
-import { getSupabaseClient } from "@/lib/loadBackendClient";
+import { supabase } from "@/integrations/supabase/client";
 
 const Unsubscribe = () => {
   const [searchParams] = useSearchParams();
