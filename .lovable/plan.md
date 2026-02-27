@@ -1,37 +1,35 @@
 
 
-## Plan: Re-enviar boletín de hoy y ajustar horario del cron
+## Plan: Validar fecha del contenido scrapeado
 
-### Paso 1: Borrar la edición de hoy y re-disparar la función
-La función detecta que ya procesó la edición de hoy y la saltea ("Already processed today"). Para forzar el re-envío:
-1. Borrar el registro de la tabla `editions` con `edition_date = '2026-02-27'`
-2. Volver a llamar la función `process-boletin` para que scrappee, resuma y envíe los emails a los suscriptores activos
+### Problema
+La función `process-boletin` siempre asigna la fecha del servidor como `edition_date`, sin verificar que el contenido scrapeado corresponda realmente a esa fecha. Si el Boletin Oficial todavia muestra la edicion del dia anterior cuando corre la funcion, se envia contenido viejo etiquetado como nuevo.
 
-### Paso 2: Actualizar el horario del cron
-El cron actual está configurado a las **10:00 UTC (7:00 AM ART)**, que es correcto. Sin embargo, para dar más margen y asegurar que el Boletín ya esté publicado, lo cambiaremos a **10:30 UTC (7:30 AM ART)**.
+### Solucion
 
-SQL a ejecutar:
-```sql
-SELECT cron.unschedule(2);
+**Modificar `supabase/functions/process-boletin/index.ts`** para:
 
-SELECT cron.schedule(
-  'process-boletin-daily',
-  '30 10 * * 1-5',
-  $$
-  SELECT net.http_post(
-    url:='https://lehgtxqjmummqzzuseqc.supabase.co/functions/v1/process-boletin',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGd0eHFqbXVtbXF6enVzZXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNTgxNDcsImV4cCI6MjA4NzczNDE0N30.VGzT6CitEUUEVV8ARsFuP_6kT4m2Ig57P0_2Jadyuz4"}'::jsonb,
-    body:='{}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
+1. **Extraer la fecha real del contenido scrapeado**: La pagina del Boletin Oficial contiene un texto como "Edicion del 27 de febrero de 2026". Usar esa fecha extraida como `edition_date` en lugar de `new Date()`.
 
-Notas:
-- Se usa `1-5` (lunes a viernes) ya que el Boletín no se publica fines de semana
-- El horario 7:30 AM ART da margen para que la edición del día ya esté online
+2. **Comparar con la fecha de hoy**: Si la fecha extraida del contenido NO coincide con hoy, no enviar el boletin. Retornar un mensaje indicando que la edicion de hoy aun no esta disponible. Esto evita enviar contenido viejo.
 
-### Resumen de acciones
-1. DELETE del registro de hoy en `editions`
-2. Llamada manual a `process-boletin` para enviar el boletín
-3. Actualizar el cron a 7:30 AM ART, solo días hábiles
+3. **Parsear la fecha en espanol**: Crear una funcion auxiliar que convierta "27 de febrero de 2026" a formato `2026-02-27`.
+
+### Cambios tecnicos
+
+En `scrapeBoletinOficial()`:
+- Parsear el match `Edicion del DD de MES de YYYY` a una fecha ISO
+- Retornar esa fecha parseada en lugar de `today`
+
+En el handler principal (`serve`):
+- Comparar la fecha retornada por el scraper con `today`
+- Si no coinciden, retornar `{ success: true, message: "Today's edition not yet available" }` sin enviar emails
+
+### Accion inmediata
+- Borrar la edicion incorrecta del 27/02 (que tiene contenido del 26/02) de la tabla `editions`
+- Desplegar la funcion corregida
+- Disparar manualmente para intentar obtener la edicion correcta
+
+### Resultado esperado
+La funcion solo envia emails cuando el contenido scrapeado corresponde al dia actual. Si la edicion no esta publicada todavia, reintenta en la proxima ejecucion del cron sin enviar contenido erroneo.
+
