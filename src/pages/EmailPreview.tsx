@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+
 
 interface NormEntry {
   category: string;
@@ -82,6 +82,7 @@ const EmailPreview = () => {
     const load = async () => {
       try {
         
+        const { supabase } = await import("../integrations/supabase/client");
         const { data } = await supabase
           .from("editions")
           .select("edition_date, summary_content")

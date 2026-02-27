@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Mail, Sparkles, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+
 
 const Index = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +18,7 @@ const Index = () => {
     setIsLoading(true);
     try {
       
+      const { supabase } = await import("../integrations/supabase/client");
       const { error } = await supabase
         .from("subscribers")
         .insert({ email: email.trim().toLowerCase() });
