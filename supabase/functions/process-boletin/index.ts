@@ -346,11 +346,17 @@ serve(async (req) => {
     });
 
     // 5. Send emails via Resend
+    const formattedDate = new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
     let emailsSent = 0;
     if (subscribers && subscribers.length > 0) {
       const SITE_URL = Deno.env.get("SITE_URL") || "https://id-preview--b4e424c5-b131-4723-a39b-ecab890cc8be.lovable.app";
       
-      // Send in batches of 50
       const batchSize = 50;
       for (let i = 0; i < subscribers.length; i += batchSize) {
         const batch = subscribers.slice(i, i + batchSize);
@@ -390,12 +396,6 @@ serve(async (req) => {
       console.log(`Sent ${emailsSent}/${subscribers.length} emails`);
     }
 
-    const formattedDate = new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
     return new Response(
       JSON.stringify({
