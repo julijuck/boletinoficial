@@ -110,7 +110,7 @@ async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): P
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      url: BOLETIN_URL,
+      url: boletinUrl,
       formats: ["markdown"],
       onlyMainContent: true,
       waitFor: 3000,
