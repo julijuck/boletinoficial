@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { MailX, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Unsubscribe = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +17,6 @@ const Unsubscribe = () => {
 
     const unsubscribe = async () => {
       try {
-        const { supabase } = await import("@/integrations/supabase/client");
         const { error } = await supabase
           .from("subscribers")
           .update({ is_active: false })
