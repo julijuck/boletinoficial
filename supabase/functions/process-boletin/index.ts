@@ -320,7 +320,26 @@ serve(async (req) => {
     }
 
     // 1. Scrape
-    const { markdown } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+
+    // Validate scraped date matches today
+    if (!scrapedDate) {
+      console.log("Could not extract date from scraped content");
+      return new Response(
+        JSON.stringify({ success: true, message: "Could not extract edition date from page" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (scrapedDate !== today) {
+      console.log(`Scraped date (${scrapedDate}) does not match today (${today}). Skipping.`);
+      return new Response(
+        JSON.stringify({ success: true, message: `Today's edition not yet available. Page shows: ${scrapedDate}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const editionDate = scrapedDate;
     const entries = parseBoletinMarkdown(markdown);
 
     if (entries.length === 0) {
