@@ -365,7 +365,7 @@ serve(async (req) => {
 
     // 4. Save edition
     await supabaseAdmin.from("editions").insert({
-      edition_date: today,
+      edition_date: editionDate,
       raw_content: entries as any,
       summary_content: summarizedEntries as any,
       email_sent: (subscribers?.length || 0) > 0,
