@@ -145,6 +145,12 @@ const Index = () => {
       <footer className="border-t border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
         <p>Resumen generado automáticamente con IA a partir del Boletín Oficial de la República Argentina.</p>
         <p className="mt-1">Este servicio no tiene afiliación oficial con el Gobierno Nacional.</p>
+        <p className="mt-1">
+          Creado por{" "}
+          <a href="https://x.com/julian_colombo" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+            Julián Colombo
+          </a>
+        </p>
       </footer>
     </div>
   );
