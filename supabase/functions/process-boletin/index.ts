@@ -288,15 +288,6 @@ serve(async (req) => {
     // Get today's date
     const today = new Date().toISOString().split("T")[0];
 
-    // Check if today is weekend (Argentina timezone)
-    const dayOfWeek = new Date(today + "T12:00:00-03:00").getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      return new Response(
-        JSON.stringify({ success: true, message: "Weekend - no edition" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Check if already processed today
     const { data: existingEdition } = await supabaseAdmin
       .from("editions")

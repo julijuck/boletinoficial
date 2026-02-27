@@ -52,8 +52,8 @@ const Index = () => {
     },
     {
       icon: Clock,
-      title: "Cada día hábil",
-      description: "Automático de lunes a viernes, sin fines de semana ni feriados.",
+      title: "Cada nueva edición",
+      description: "Automático con cada nueva publicación, sin feriados ni fines de semana.",
     },
     {
       icon: Mail,
@@ -76,11 +76,10 @@ const Index = () => {
             Boletín Oficial · Primera Sección
           </div>
           <h1 className="mb-6 text-4xl font-bold tracking-tight text-primary-foreground md:text-5xl lg:text-6xl">
-            Tu resumen diario del Boletín Oficial
+            Boletín Oficial:<br />Tu resumen diario
           </h1>
           <p className="mb-10 text-lg text-primary-foreground/80 md:text-xl">
-            Recibí cada día hábil un resumen con IA de toda la legislación publicada. 
-            Títulos, extractos concisos y links directos en tu correo.
+            Recibí un resumen con IA de cada nueva edición. Títulos, extractos concisos y links directos en tu correo.
           </p>
 
           {subscribed ? (
