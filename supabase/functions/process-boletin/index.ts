@@ -373,7 +373,7 @@ serve(async (req) => {
     });
 
     // 5. Send emails via Resend
-    const formattedDate = new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
+    const formattedDate = new Date(editionDate + "T12:00:00").toLocaleDateString("es-AR", {
       weekday: "long",
       year: "numeric",
       month: "long",
