@@ -21,7 +21,7 @@ const Unsubscribe = () => {
       setStatus(result.ok ? "success" : "error");
     };
 
-    unsubscribe();
+    run();
   }, [token]);
 
   return (

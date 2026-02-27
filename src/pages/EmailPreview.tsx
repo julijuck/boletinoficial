@@ -81,23 +81,11 @@ const EmailPreview = () => {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        
-        const { supabase } = await import("../integrations/supabase/client");
-        const { data } = await supabase
-          .from("editions")
-          .select("edition_date, summary_content")
-          .order("edition_date", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (data?.summary_content) {
-          const entries = data.summary_content as unknown as NormEntry[];
-          setEditionDate(data.edition_date);
-          setHtml(buildEmailHtml(entries, data.edition_date));
-        }
-      } catch {
-        // silently fail — page will show "no editions" state
+      const data = await getLatestEdition();
+      if (data?.summary_content) {
+        const entries = data.summary_content as unknown as NormEntry[];
+        setEditionDate(data.edition_date);
+        setHtml(buildEmailHtml(entries, data.edition_date));
       }
       setLoading(false);
     };
