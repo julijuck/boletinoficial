@@ -52,8 +52,8 @@ const Index = () => {
     },
     {
       icon: Clock,
-      title: "Cada día hábil",
-      description: "Automático de lunes a viernes, sin fines de semana ni feriados.",
+      title: "Cada nueva edición",
+      description: "Automático con cada nueva publicación, sin feriados ni fines de semana.",
     },
     {
       icon: Mail,
