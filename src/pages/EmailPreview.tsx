@@ -89,9 +89,12 @@ const EmailPreview = () => {
           .maybeSingle();
 
         if (data?.summary_content) {
-        const entries = data.summary_content as unknown as NormEntry[];
-        setEditionDate(data.edition_date);
-        setHtml(buildEmailHtml(entries, data.edition_date));
+          const entries = data.summary_content as unknown as NormEntry[];
+          setEditionDate(data.edition_date);
+          setHtml(buildEmailHtml(entries, data.edition_date));
+        }
+      } catch {
+        // silently fail — page will show "no editions" state
       }
       setLoading(false);
     };
