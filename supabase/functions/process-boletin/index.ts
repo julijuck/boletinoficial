@@ -128,13 +128,6 @@ async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown
   const normalizedMarkdown = markdown.replace(/\n+/g, " ");
   const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
   
-  // Debug: log portion around "dici" to find the date format
-  const idx = markdown.toLowerCase().indexOf("dici");
-  if (idx >= 0) {
-    console.log("Date context:", JSON.stringify(markdown.substring(Math.max(0, idx - 50), idx + 100)));
-  } else {
-    console.log("No 'dici' found in markdown. First 500 chars:", JSON.stringify(markdown.substring(0, 500)));
-  }
   
   const scrapedDate = dateMatch ? parseSpanishDate(dateMatch[1]) : null;
   
