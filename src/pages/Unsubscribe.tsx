@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { MailX, Loader2 } from "lucide-react";
+import { unsubscribeByToken } from "@/lib/backendApi";
 
 
 const Unsubscribe = () => {
@@ -15,21 +16,12 @@ const Unsubscribe = () => {
       return;
     }
 
-    const unsubscribe = async () => {
-      try {
-        
-        const { supabase } = await import("../integrations/supabase/client");
-        const { error } = await supabase
-          .from("subscribers")
-          .update({ is_active: false })
-          .eq("unsubscribe_token", token);
-        setStatus(error ? "error" : "success");
-      } catch {
-        setStatus("error");
-      }
+    const run = async () => {
+      const result = await unsubscribeByToken(token);
+      setStatus(result.ok ? "success" : "error");
     };
 
-    unsubscribe();
+    run();
   }, [token]);
 
   return (

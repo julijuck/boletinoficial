@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Mail, Sparkles, Clock } from "lucide-react";
+import { subscribeEmail } from "@/lib/backendApi";
 
 
 const Index = () => {
@@ -16,29 +17,16 @@ const Index = () => {
     if (!email) return;
 
     setIsLoading(true);
-    try {
-      
-      const { supabase } = await import("../integrations/supabase/client");
-      const { error } = await supabase
-        .from("subscribers")
-        .insert({ email: email.trim().toLowerCase() });
-
-      if (error) {
-        if (error.code === "23505") {
-          toast({ title: "Ya estás suscripto", description: "Este email ya está registrado." });
-        } else {
-          toast({ title: "Error", description: "No se pudo completar la suscripción.", variant: "destructive" });
-        }
-        return;
-      }
-
+    const result = await subscribeEmail(email);
+    if (result.ok) {
       setSubscribed(true);
       toast({ title: "¡Suscripción exitosa!", description: "Vas a recibir el resumen cada día hábil." });
-    } catch {
-      toast({ title: "Error", description: "Ocurrió un error inesperado.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+    } else if (result.duplicate) {
+      toast({ title: "Ya estás suscripto", description: "Este email ya está registrado." });
+    } else {
+      toast({ title: "Error", description: "No se pudo completar la suscripción.", variant: "destructive" });
     }
+    setIsLoading(false);
   };
 
   const features = [
