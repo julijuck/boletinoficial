@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BOLETIN_URL = "https://www.boletinoficial.gob.ar/seccion/primera";
+const BOLETIN_BASE_URL = "https://www.boletinoficial.gob.ar/seccion/primera";
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const FIRECRAWL_URL = "https://api.firecrawl.dev/v1/scrape";
 
