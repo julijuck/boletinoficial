@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Mail, Sparkles, Clock } from "lucide-react";
+import { subscribeEmail } from "@/lib/backendApi";
 
 
 const Index = () => {
