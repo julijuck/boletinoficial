@@ -99,9 +99,10 @@ function parseSpanishDate(dateStr: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
-async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; scrapedDate: string | null }> {
-  console.log("Scraping Boletín Oficial...");
-  
+async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): Promise<{ markdown: string; scrapedDate: string | null }> {
+  const urlDate = dateStr.replace(/-/g, "");
+  const boletinUrl = `${BOLETIN_BASE_URL}/${urlDate}`;
+  console.log(`Scraping Boletín Oficial at ${boletinUrl}...`);
   const response = await fetch(FIRECRAWL_URL, {
     method: "POST",
     headers: {
