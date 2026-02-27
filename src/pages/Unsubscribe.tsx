@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { MailX, Loader2 } from "lucide-react";
 
@@ -16,12 +15,16 @@ const Unsubscribe = () => {
     }
 
     const unsubscribe = async () => {
-      const { error } = await supabase
-        .from("subscribers")
-        .update({ is_active: false })
-        .eq("unsubscribe_token", token);
-
-      setStatus(error ? "error" : "success");
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { error } = await supabase
+          .from("subscribers")
+          .update({ is_active: false })
+          .eq("unsubscribe_token", token);
+        setStatus(error ? "error" : "success");
+      } catch {
+        setStatus("error");
+      }
     };
 
     unsubscribe();
