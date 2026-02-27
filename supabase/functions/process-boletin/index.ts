@@ -22,38 +22,62 @@ function parseBoletinMarkdown(markdown: string): NormEntry[] {
   const entries: NormEntry[] = [];
   let currentCategory = "";
 
-  const lines = markdown.split("\n");
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Category headers like "##### DECRETOS"
-    if (line.startsWith("##### ") && !line.includes("Secciones") && !line.includes("Cantidad")) {
-      currentCategory = line.replace(/^#+\s*/, "").trim();
-      continue;
-    }
+  // First, find category headers
+  const categoryRegex = /^#{1,6}\s+((?:LEYES|DECRETOS|RESOLUCIONES|DISPOSICIONES|AVISOS|DECISIONES|RESOLUCIONES GENERALES|RESOLUCIONES CONJUNTAS|RESOLUCIONES SINTETIZADAS|LEYES \(SUPLEMENTO\)|DECRETOS \(SUPLEMENTO\)).*?)$/gm;
 
-    // Entry links like [ORG \\ Número \\ Desc](URL)
-    const linkMatch = line.match(/^\[(.+?)\]\((https:\/\/www\.boletinoficial\.gob\.ar\/detalleAviso\/.+?)\)$/s);
-    if (linkMatch) {
-      const content = linkMatch[1];
-      const url = linkMatch[2];
+  // Find all links to detalleAviso - they may span multiple lines
+  // Collapse the markdown into a single line for matching links
+  const collapsed = markdown.replace(/\n/g, " ");
+
+  // Extract category positions from original markdown
+  const lines = markdown.split("\n");
+  const categoryPositions: Array<{ name: string; charIndex: number }> = [];
+  let charIndex = 0;
+  for (const line of lines) {
+    const catMatch = line.trim().match(/^#{1,6}\s+((?:LEYES|DECRETOS|RESOLUCIONES|DISPOSICIONES|AVISOS|DECISIONES).*?)$/i);
+    if (catMatch && !line.includes("Secciones") && !line.includes("Cantidad")) {
+      categoryPositions.push({ name: catMatch[1].trim(), charIndex });
+    }
+    charIndex += line.length + 1;
+  }
+
+  // Find all detalleAviso links in the collapsed content
+  const linkRegex = /\[([^\]]+?)\]\((https:\/\/www\.boletinoficial\.gob\.ar\/detalleAviso\/[^\)]+)\)/g;
+  let match;
+  
+  while ((match = linkRegex.exec(collapsed)) !== null) {
+    const content = match[1];
+    const url = match[2];
+    const matchPos = match.index;
+    
+    // Find the category for this entry based on position in original markdown
+    let cat = currentCategory;
+    for (const cp of categoryPositions) {
+      if (cp.charIndex < matchPos) cat = cp.name;
+    }
+    currentCategory = cat;
+
+    // Split by \\ or multiple spaces to get parts
+    const parts = content.split(/\\+/).map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+    
+    if (parts.length >= 2) {
+      const org = parts[0] || "";
+      const number = parts[1] || "";
+      const desc = parts.slice(2).join(" - ").trim();
       
-      // Split by \\ to get parts
-      const parts = content.split("\\").map((p: string) => p.trim()).filter((p: string) => p.length > 0);
-      
-      if (parts.length >= 2) {
-        const org = parts[0] || "";
-        const number = parts[1] || "";
-        const desc = parts.slice(2).join(" - ").trim();
-        
-        entries.push({
-          category: currentCategory,
-          title: `${org} - ${number}`.trim(),
-          description: desc || number,
-          url,
-        });
-      }
+      entries.push({
+        category: currentCategory,
+        title: `${org} - ${number}`.trim(),
+        description: desc || number,
+        url,
+      });
+    } else if (parts.length === 1) {
+      entries.push({
+        category: currentCategory,
+        title: parts[0],
+        description: "",
+        url,
+      });
     }
   }
 
