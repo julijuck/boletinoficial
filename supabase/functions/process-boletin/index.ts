@@ -324,7 +324,7 @@ serve(async (req) => {
     }
 
     // 1. Scrape
-    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY, today);
 
     // Validate scraped date matches today
     if (!scrapedDate) {
