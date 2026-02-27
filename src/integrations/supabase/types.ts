@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      editions: {
+        Row: {
+          created_at: string
+          edition_date: string
+          email_sent: boolean
+          id: string
+          raw_content: Json | null
+          subscribers_count: number | null
+          summary_content: Json | null
+        }
+        Insert: {
+          created_at?: string
+          edition_date: string
+          email_sent?: boolean
+          id?: string
+          raw_content?: Json | null
+          subscribers_count?: number | null
+          summary_content?: Json | null
+        }
+        Update: {
+          created_at?: string
+          edition_date?: string
+          email_sent?: boolean
+          id?: string
+          raw_content?: Json | null
+          subscribers_count?: number | null
+          summary_content?: Json | null
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          unsubscribe_token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          unsubscribe_token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          unsubscribe_token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
