@@ -17,7 +17,7 @@ const Unsubscribe = () => {
 
     const unsubscribe = async () => {
       try {
-        const supabase = await getSupabaseClient();
+        
         const { error } = await supabase
           .from("subscribers")
           .update({ is_active: false })

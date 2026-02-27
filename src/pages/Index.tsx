@@ -17,7 +17,7 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      const supabase = await getSupabaseClient();
+      
       const { error } = await supabase
         .from("subscribers")
         .insert({ email: email.trim().toLowerCase() });
