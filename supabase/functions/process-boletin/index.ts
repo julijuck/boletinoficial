@@ -84,7 +84,22 @@ function parseBoletinMarkdown(markdown: string): NormEntry[] {
   return entries;
 }
 
-async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; date: string }> {
+function parseSpanishDate(dateStr: string): string | null {
+  const months: Record<string, string> = {
+    enero: "01", febrero: "02", marzo: "03", abril: "04",
+    mayo: "05", junio: "06", julio: "07", agosto: "08",
+    septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+  };
+  const match = dateStr.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (!match) return null;
+  const day = match[1].padStart(2, "0");
+  const month = months[match[2].toLowerCase()];
+  const year = match[3];
+  if (!month) return null;
+  return `${year}-${month}-${day}`;
+}
+
+async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   console.log("Scraping Boletín Oficial...");
   
   const response = await fetch(FIRECRAWL_URL, {
@@ -110,10 +125,12 @@ async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown
   const markdown = data.data?.markdown || data.markdown || "";
   
   // Extract date from the page
-  const dateMatch = markdown.match(/Edición del\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i);
-  const today = new Date().toISOString().split("T")[0];
+  const dateMatch = markdown.match(/Edici[oó]n del\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i);
+  const scrapedDate = dateMatch ? parseSpanishDate(dateMatch[1]) : null;
   
-  return { markdown, date: today };
+  console.log(`Scraped date from page: ${scrapedDate || "NOT FOUND"}`);
+  
+  return { markdown, scrapedDate };
 }
 
 async function generateSummaries(
@@ -303,7 +320,26 @@ serve(async (req) => {
     }
 
     // 1. Scrape
-    const { markdown } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+
+    // Validate scraped date matches today
+    if (!scrapedDate) {
+      console.log("Could not extract date from scraped content");
+      return new Response(
+        JSON.stringify({ success: true, message: "Could not extract edition date from page" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (scrapedDate !== today) {
+      console.log(`Scraped date (${scrapedDate}) does not match today (${today}). Skipping.`);
+      return new Response(
+        JSON.stringify({ success: true, message: `Today's edition not yet available. Page shows: ${scrapedDate}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const editionDate = scrapedDate;
     const entries = parseBoletinMarkdown(markdown);
 
     if (entries.length === 0) {
@@ -329,7 +365,7 @@ serve(async (req) => {
 
     // 4. Save edition
     await supabaseAdmin.from("editions").insert({
-      edition_date: today,
+      edition_date: editionDate,
       raw_content: entries as any,
       summary_content: summarizedEntries as any,
       email_sent: (subscribers?.length || 0) > 0,
@@ -337,7 +373,7 @@ serve(async (req) => {
     });
 
     // 5. Send emails via Resend
-    const formattedDate = new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
+    const formattedDate = new Date(editionDate + "T12:00:00").toLocaleDateString("es-AR", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -354,7 +390,7 @@ serve(async (req) => {
         
         const emailPromises = batch.map(async (subscriber) => {
           const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
-          const html = buildEmailHtml(summarizedEntries, today, unsubscribeUrl);
+          const html = buildEmailHtml(summarizedEntries, editionDate, unsubscribeUrl);
 
           try {
             const res = await fetch("https://api.resend.com/emails", {
@@ -391,7 +427,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        date: today,
+        date: editionDate,
         entries_count: summarizedEntries.length,
         subscribers_notified: subscribers?.length || 0,
       }),
