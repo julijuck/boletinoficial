@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BOLETIN_URL = "https://www.boletinoficial.gob.ar/seccion/primera";
+const BOLETIN_BASE_URL = "https://www.boletinoficial.gob.ar/seccion/primera";
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const FIRECRAWL_URL = "https://api.firecrawl.dev/v1/scrape";
 
@@ -99,9 +99,10 @@ function parseSpanishDate(dateStr: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
-async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown: string; scrapedDate: string | null }> {
-  console.log("Scraping Boletín Oficial...");
-  
+async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): Promise<{ markdown: string; scrapedDate: string | null }> {
+  const urlDate = dateStr.replace(/-/g, "");
+  const boletinUrl = `${BOLETIN_BASE_URL}/${urlDate}`;
+  console.log(`Scraping Boletín Oficial at ${boletinUrl}...`);
   const response = await fetch(FIRECRAWL_URL, {
     method: "POST",
     headers: {
@@ -109,7 +110,7 @@ async function scrapeBoletinOficial(firecrawlApiKey: string): Promise<{ markdown
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      url: BOLETIN_URL,
+      url: boletinUrl,
       formats: ["markdown"],
       onlyMainContent: true,
       waitFor: 3000,
@@ -323,7 +324,7 @@ serve(async (req) => {
     }
 
     // 1. Scrape
-    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY);
+    const { markdown, scrapedDate } = await scrapeBoletinOficial(FIRECRAWL_API_KEY, today);
 
     // Validate scraped date matches today
     if (!scrapedDate) {

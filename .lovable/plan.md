@@ -1,33 +1,35 @@
 
 
-## Plan: Usar URL con fecha específica para el scraping
+## Plan: Validar fecha del contenido scrapeado
 
-### Problema raíz
-La URL genérica `https://www.boletinoficial.gob.ar/seccion/primera` no siempre muestra la edición más reciente (actualmente muestra el 26/02 aunque el 27/02 ya está disponible). Sin embargo, la URL con fecha explícita `https://www.boletinoficial.gob.ar/seccion/primera/20260227` sí tiene la edición del 27/02.
+### Problema
+La función `process-boletin` siempre asigna la fecha del servidor como `edition_date`, sin verificar que el contenido scrapeado corresponda realmente a esa fecha. Si el Boletin Oficial todavia muestra la edicion del dia anterior cuando corre la funcion, se envia contenido viejo etiquetado como nuevo.
 
-### Solución
-Modificar `supabase/functions/process-boletin/index.ts` para:
+### Solucion
 
-1. **Construir la URL con la fecha de hoy**: En lugar de usar la URL fija `/seccion/primera`, generar la URL con el formato `/seccion/primera/YYYYMMDD` usando la fecha del servidor.
+**Modificar `supabase/functions/process-boletin/index.ts`** para:
 
-2. **Simplificar la validación de fecha**: La fecha scrapeada debería coincidir con hoy porque estamos pidiendo explícitamente esa fecha. Si la página devuelve otra fecha o no tiene contenido, significa que la edición de hoy no existe (ej: fin de semana o feriado).
+1. **Extraer la fecha real del contenido scrapeado**: La pagina del Boletin Oficial contiene un texto como "Edicion del 27 de febrero de 2026". Usar esa fecha extraida como `edition_date` en lugar de `new Date()`.
 
-3. **Mantener la validación existente como fallback**: Si la fecha extraída del contenido no coincide con hoy, seguir sin enviar.
+2. **Comparar con la fecha de hoy**: Si la fecha extraida del contenido NO coincide con hoy, no enviar el boletin. Retornar un mensaje indicando que la edicion de hoy aun no esta disponible. Esto evita enviar contenido viejo.
 
-### Cambios técnicos
+3. **Parsear la fecha en espanol**: Crear una funcion auxiliar que convierta "27 de febrero de 2026" a formato `2026-02-27`.
 
-En `supabase/functions/process-boletin/index.ts`:
+### Cambios tecnicos
 
-- Cambiar `BOLETIN_URL` de URL fija a una función que genera la URL con la fecha de hoy
-- Formato de fecha para la URL: `YYYYMMDD` (ej: `20260227`)
-- El resto de la lógica de validación de fecha se mantiene como está
+En `scrapeBoletinOficial()`:
+- Parsear el match `Edicion del DD de MES de YYYY` a una fecha ISO
+- Retornar esa fecha parseada en lugar de `today`
 
-```text
-Antes:  https://www.boletinoficial.gob.ar/seccion/primera
-Ahora:  https://www.boletinoficial.gob.ar/seccion/primera/20260227
-```
+En el handler principal (`serve`):
+- Comparar la fecha retornada por el scraper con `today`
+- Si no coinciden, retornar `{ success: true, message: "Today's edition not yet available" }` sin enviar emails
 
-### Acciones adicionales
-1. Borrar la edición incorrecta del 27/02 si existe en la tabla `editions`
-2. Desplegar la función corregida
-3. Disparar manualmente para procesar la edición del 27/02
+### Accion inmediata
+- Borrar la edicion incorrecta del 27/02 (que tiene contenido del 26/02) de la tabla `editions`
+- Desplegar la funcion corregida
+- Disparar manualmente para intentar obtener la edicion correcta
+
+### Resultado esperado
+La funcion solo envia emails cuando el contenido scrapeado corresponde al dia actual. Si la edicion no esta publicada todavia, reintenta en la proxima ejecucion del cron sin enviar contenido erroneo.
+
