@@ -1,35 +1,21 @@
 
 
-## Plan: Validar fecha del contenido scrapeado
+## Plan: Re-ejecutar el boletín de hoy con logging completo
 
-### Problema
-La función `process-boletin` siempre asigna la fecha del servidor como `edition_date`, sin verificar que el contenido scrapeado corresponda realmente a esa fecha. Si el Boletin Oficial todavia muestra la edicion del dia anterior cuando corre la funcion, se envia contenido viejo etiquetado como nuevo.
+### Situación
+- El email de prueba (`test-email`) llegó bien → Resend funciona.
+- La ejecución del cron de hoy (10:30 UTC) no dejó logs visibles, y los emails no llegaron.
+- La función ya tiene logging mejorado (agregado recién), pero no se usó en la ejecución de hoy porque el deploy fue posterior.
+- La edición de hoy ya existe en la base de datos, así que `process-boletin` dice "Already processed today".
 
-### Solucion
+### Pasos
 
-**Modificar `supabase/functions/process-boletin/index.ts`** para:
+1. **Borrar la edición de hoy** de la tabla `editions` (id: `e5546390-3dd3-4c68-8040-dbe86cd46884`) para permitir que la función se re-ejecute.
 
-1. **Extraer la fecha real del contenido scrapeado**: La pagina del Boletin Oficial contiene un texto como "Edicion del 27 de febrero de 2026". Usar esa fecha extraida como `edition_date` en lugar de `new Date()`.
+2. **Ejecutar `process-boletin` manualmente** via curl para capturar la respuesta completa con el nuevo logging, incluyendo el `email_results` con el status y response body de Resend para cada suscriptor.
 
-2. **Comparar con la fecha de hoy**: Si la fecha extraida del contenido NO coincide con hoy, no enviar el boletin. Retornar un mensaje indicando que la edicion de hoy aun no esta disponible. Esto evita enviar contenido viejo.
-
-3. **Parsear la fecha en espanol**: Crear una funcion auxiliar que convierta "27 de febrero de 2026" a formato `2026-02-27`.
-
-### Cambios tecnicos
-
-En `scrapeBoletinOficial()`:
-- Parsear el match `Edicion del DD de MES de YYYY` a una fecha ISO
-- Retornar esa fecha parseada en lugar de `today`
-
-En el handler principal (`serve`):
-- Comparar la fecha retornada por el scraper con `today`
-- Si no coinciden, retornar `{ success: true, message: "Today's edition not yet available" }` sin enviar emails
-
-### Accion inmediata
-- Borrar la edicion incorrecta del 27/02 (que tiene contenido del 26/02) de la tabla `editions`
-- Desplegar la funcion corregida
-- Disparar manualmente para intentar obtener la edicion correcta
+3. **Analizar el resultado** — la respuesta nos dirá exactamente si Resend aceptó o rechazó cada email, y con qué mensaje.
 
 ### Resultado esperado
-La funcion solo envia emails cuando el contenido scrapeado corresponde al dia actual. Si la edicion no esta publicada todavia, reintenta en la proxima ejecucion del cron sin enviar contenido erroneo.
+Vamos a ver la respuesta cruda de Resend para cada email enviado, lo que nos permitirá identificar el problema exacto (rechazo por dominio, rate limit, error de API, etc.).
 
