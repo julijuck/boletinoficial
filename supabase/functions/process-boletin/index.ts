@@ -385,6 +385,8 @@ serve(async (req) => {
     });
 
     let emailsSent = 0;
+    const emailResults: Array<{ email: string; success: boolean; status?: number; response?: string; error?: string }> = [];
+    
     if (subscribers && subscribers.length > 0) {
       const SITE_URL = Deno.env.get("SITE_URL") || "https://id-preview--b4e424c5-b131-4723-a39b-ecab890cc8be.lovable.app";
       
@@ -410,13 +412,19 @@ serve(async (req) => {
                 html,
               }),
             });
+            const resBody = await res.text();
+            console.log(`Resend [${subscriber.email}] status=${res.status} body=${resBody}`);
+            
             if (res.ok) {
               emailsSent++;
+              emailResults.push({ email: subscriber.email, success: true, status: res.status, response: resBody });
             } else {
-              const errText = await res.text();
-              console.error(`Failed to send to ${subscriber.email}: ${errText}`);
+              emailResults.push({ email: subscriber.email, success: false, status: res.status, response: resBody });
+              console.error(`Failed to send to ${subscriber.email}: status=${res.status} body=${resBody}`);
             }
           } catch (emailErr) {
+            const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+            emailResults.push({ email: subscriber.email, success: false, error: errMsg });
             console.error(`Error sending to ${subscriber.email}:`, emailErr);
           }
         });
@@ -427,13 +435,14 @@ serve(async (req) => {
       console.log(`Sent ${emailsSent}/${subscribers.length} emails`);
     }
 
-
     return new Response(
       JSON.stringify({
         success: true,
         date: editionDate,
         entries_count: summarizedEntries.length,
         subscribers_notified: subscribers?.length || 0,
+        emails_sent: emailsSent,
+        email_results: emailResults,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
