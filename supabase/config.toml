@@ -2,3 +2,6 @@ project_id = "lehgtxqjmummqzzuseqc"
 
 [functions.process-boletin]
 verify_jwt = false
+
+[functions.test-email]
+verify_jwt = false
