@@ -1,21 +1,36 @@
 
 
-## Plan: Re-ejecutar el boletín de hoy con logging completo
+## Plan: Hacer el envío confiable para uso personal
 
-### Situación
-- El email de prueba (`test-email`) llegó bien → Resend funciona.
-- La ejecución del cron de hoy (10:30 UTC) no dejó logs visibles, y los emails no llegaron.
-- La función ya tiene logging mejorado (agregado recién), pero no se usó en la ejecución de hoy porque el deploy fue posterior.
-- La edición de hoy ya existe en la base de datos, así que `process-boletin` dice "Already processed today".
+### Contexto
+Esto es para vos, no un producto público. Con `resend.dev` solo llegan emails a tu dirección verificada (`juliancolombo2@gmail.com`), y eso está bien. El problema es que algunos días no llega y no hay forma de saber por qué ni de reintentar fácilmente.
 
-### Pasos
+### Cambios
 
-1. **Borrar la edición de hoy** de la tabla `editions` (id: `e5546390-3dd3-4c68-8040-dbe86cd46884`) para permitir que la función se re-ejecute.
+**1. Persistir resultados de envío en la base de datos**
 
-2. **Ejecutar `process-boletin` manualmente** via curl para capturar la respuesta completa con el nuevo logging, incluyendo el `email_results` con el status y response body de Resend para cada suscriptor.
+Agregar columna `email_results` (jsonb) a `editions` para guardar la respuesta de Resend. Así siempre podés ver si el email fue aceptado o rechazado sin depender de logs que expiran.
 
-3. **Analizar el resultado** — la respuesta nos dirá exactamente si Resend aceptó o rechazó cada email, y con qué mensaje.
+```sql
+ALTER TABLE editions ADD COLUMN email_results jsonb DEFAULT '[]';
+```
 
-### Resultado esperado
-Vamos a ver la respuesta cruda de Resend para cada email enviado, lo que nos permitirá identificar el problema exacto (rechazo por dominio, rate limit, error de API, etc.).
+Actualizar `process-boletin` para hacer UPDATE con los resultados después del envío.
+
+**2. Crear función `resend-edition` para reenviar**
+
+Una función que tome un `edition_date`, busque el contenido ya generado en `editions`, y reenvíe el email. Para los días que no llega, podés disparar un reenvío manualmente sin re-scrapear ni re-generar resúmenes.
+
+**3. Agregar reintentos automáticos en `process-boletin`**
+
+Si Resend devuelve error, reintentar el envío hasta 3 veces con un delay de 2 segundos entre intentos. Esto cubre fallos transitorios de la API.
+
+### Archivos
+
+| Archivo | Cambio |
+|---|---|
+| `editions` table | Nueva columna `email_results` |
+| `process-boletin/index.ts` | Guardar resultados en DB + reintentos automáticos |
+| `resend-edition/index.ts` | Nueva función para reenviar ediciones |
+| `supabase/config.toml` | Registrar `resend-edition` |
 
