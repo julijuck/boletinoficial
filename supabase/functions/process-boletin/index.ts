@@ -385,7 +385,7 @@ serve(async (req) => {
     });
 
     let emailsSent = 0;
-    const emailResults: Array<{ email: string; success: boolean; status?: number; response?: string; error?: string }> = [];
+    const emailResults: Array<{ email: string; success: boolean; status?: number; response?: string; error?: string; attempts?: number }> = [];
     
     if (subscribers && subscribers.length > 0) {
       const SITE_URL = Deno.env.get("SITE_URL") || "https://id-preview--b4e424c5-b131-4723-a39b-ecab890cc8be.lovable.app";
@@ -398,34 +398,47 @@ serve(async (req) => {
           const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
           const html = buildEmailHtml(summarizedEntries, editionDate, unsubscribeUrl);
 
-          try {
-            const res = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "Boletín Oficial Resumen <boletin@resend.dev>",
-                to: [subscriber.email],
-                subject: `📰 Boletín Oficial - ${formattedDate}`,
-                html,
-              }),
-            });
-            const resBody = await res.text();
-            console.log(`Resend [${subscriber.email}] status=${res.status} body=${resBody}`);
-            
-            if (res.ok) {
-              emailsSent++;
-              emailResults.push({ email: subscriber.email, success: true, status: res.status, response: resBody });
-            } else {
-              emailResults.push({ email: subscriber.email, success: false, status: res.status, response: resBody });
-              console.error(`Failed to send to ${subscriber.email}: status=${res.status} body=${resBody}`);
+          const MAX_RETRIES = 3;
+          const RETRY_DELAY_MS = 2000;
+          
+          for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+              const res = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "Boletín Oficial Resumen <boletin@resend.dev>",
+                  to: [subscriber.email],
+                  subject: `📰 Boletín Oficial - ${formattedDate}`,
+                  html,
+                }),
+              });
+              const resBody = await res.text();
+              console.log(`Resend [${subscriber.email}] attempt=${attempt} status=${res.status} body=${resBody}`);
+              
+              if (res.ok) {
+                emailsSent++;
+                emailResults.push({ email: subscriber.email, success: true, status: res.status, response: resBody, attempts: attempt });
+                break; // success, no more retries
+              } else if (attempt === MAX_RETRIES) {
+                emailResults.push({ email: subscriber.email, success: false, status: res.status, response: resBody, attempts: attempt });
+              } else {
+                console.log(`Retrying ${subscriber.email} in ${RETRY_DELAY_MS}ms...`);
+                await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+              }
+            } catch (emailErr) {
+              const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+              if (attempt === MAX_RETRIES) {
+                emailResults.push({ email: subscriber.email, success: false, error: errMsg, attempts: attempt });
+                console.error(`Failed after ${MAX_RETRIES} attempts for ${subscriber.email}:`, emailErr);
+              } else {
+                console.log(`Attempt ${attempt} error for ${subscriber.email}, retrying...`);
+                await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+              }
             }
-          } catch (emailErr) {
-            const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-            emailResults.push({ email: subscriber.email, success: false, error: errMsg });
-            console.error(`Error sending to ${subscriber.email}:`, emailErr);
           }
         });
 
@@ -434,6 +447,12 @@ serve(async (req) => {
       
       console.log(`Sent ${emailsSent}/${subscribers.length} emails`);
     }
+
+    // Save email results to the edition record
+    await supabaseAdmin
+      .from("editions")
+      .update({ email_results: emailResults as any })
+      .eq("edition_date", editionDate);
 
     return new Response(
       JSON.stringify({

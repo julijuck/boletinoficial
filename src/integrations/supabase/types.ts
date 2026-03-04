@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           edition_date: string
+          email_results: Json | null
           email_sent: boolean
           id: string
           raw_content: Json | null
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           created_at?: string
           edition_date: string
+          email_results?: Json | null
           email_sent?: boolean
           id?: string
           raw_content?: Json | null
@@ -36,6 +38,7 @@ export type Database = {
         Update: {
           created_at?: string
           edition_date?: string
+          email_results?: Json | null
           email_sent?: boolean
           id?: string
           raw_content?: Json | null
