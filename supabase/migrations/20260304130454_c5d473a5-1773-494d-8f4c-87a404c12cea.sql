@@ -1,0 +1,1 @@
+ALTER TABLE public.editions ADD COLUMN email_results jsonb DEFAULT '[]';
