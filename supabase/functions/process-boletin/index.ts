@@ -137,6 +137,41 @@ async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): P
   return { markdown, scrapedDate };
 }
 
+async function fetchDetail(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ");
+    const idx = text.search(/VISTO|CONSIDERANDO|ART[IÍ]CULO 1/);
+    return (idx >= 0 ? text.slice(idx) : "").slice(0, 1500);
+  } catch {
+    return "";
+  }
+}
+
+async function fetchAllDetails(entries: NormEntry[]): Promise<string[]> {
+  const out: string[] = new Array(entries.length).fill("");
+  let next = 0;
+  const worker = async () => {
+    while (next < entries.length) {
+      const i = next++;
+      out[i] = await fetchDetail(entries[i].url);
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
+  console.log(`Fetched details: ${out.filter(Boolean).length}/${entries.length}`);
+  return out;
+}
+
 async function generateSummaries(
   entries: NormEntry[],
   lovableApiKey: string
@@ -145,9 +180,10 @@ async function generateSummaries(
 
   console.log(`Generating AI summaries for ${entries.length} entries...`);
 
+  const details = await fetchAllDetails(entries);
   const entriesText = entries
-    .map((e, i) => `${i + 1}. [${e.category}] ${e.title}: ${e.description}`)
-    .join("\n");
+    .map((e, i) => `${i + 1}. [${e.category}] ${e.title}: ${e.description}${details[i] ? `\nTEXTO: ${details[i]}` : ""}`)
+    .join("\n\n");
 
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
@@ -160,11 +196,11 @@ async function generateSummaries(
       messages: [
         {
           role: "system",
-          content: `Sos un asistente legal argentino. Para cada normativa del Boletín Oficial, generá un extracto claro y conciso de máximo 2 renglones que explique de qué se trata en lenguaje simple. Respondé en formato JSON como un array de objetos con "index" (número de la normativa) y "summary" (el extracto). No agregues ningún otro texto, solo el JSON.`,
+          content: `Sos un asistente legal argentino. Para cada normativa del Boletín Oficial, generá un extracto de exactamente 2 renglones (máx. ~45 palabras) en lenguaje jurídico argentino claro: primero qué tipo de acto es, y luego de qué se trata concretamente usando el TEXTO provisto (partes, organismo, objeto, montos, plazos o personas designadas). Ejemplo: "Aprueba el Modelo de Acuerdo para una línea de crédito condicional (CCLIP) entre la República Argentina y el BID, destinada a proyectos de inversión." Si no hay TEXTO, resumí a partir del título.`,
         },
         {
           role: "user",
-          content: `Generá un extracto de 2 renglones para cada una de estas normativas del Boletín Oficial:\n\n${entriesText}`,
+          content: `Generá el extracto para cada una de estas normativas:\n\n${entriesText}`,
         },
       ],
       tools: [
