@@ -47,6 +47,42 @@ export type Database = {
         }
         Relationships: []
       }
+      norm_feedback: {
+        Row: {
+          category: string | null
+          created_at: string
+          edition_date: string | null
+          id: string
+          organism: string | null
+          subscriber_token: string
+          title: string | null
+          url: string
+          vote: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          edition_date?: string | null
+          id?: string
+          organism?: string | null
+          subscriber_token: string
+          title?: string | null
+          url: string
+          vote: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          edition_date?: string | null
+          id?: string
+          organism?: string | null
+          subscriber_token?: string
+          title?: string | null
+          url?: string
+          vote?: number
+        }
+        Relationships: []
+      }
       subscribers: {
         Row: {
           created_at: string
