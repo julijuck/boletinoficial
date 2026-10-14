@@ -476,7 +476,14 @@ serve(async (req) => {
         
         const emailPromises = batch.map(async (subscriber) => {
           const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
-          const html = buildEmailHtml(summarizedEntries, editionDate, unsubscribeUrl);
+          const { data: fb } = await supabaseAdmin
+            .from("norm_feedback")
+            .select("category, organism, vote")
+            .eq("subscriber_token", subscriber.unsubscribe_token);
+          const html = buildEmailHtml(
+            summarizedEntries, editionDate, unsubscribeUrl,
+            `${SUPABASE_URL}/functions/v1/feedback`, subscriber.unsubscribe_token, (fb as any) || []
+          );
 
           const MAX_RETRIES = 3;
           const RETRY_DELAY_MS = 2000;
