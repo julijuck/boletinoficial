@@ -22,15 +22,19 @@ Deno.serve(async (req) => {
     return go("invalid");
   }
 
+  const work = (async () => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: sub } = await sb.from("subscribers").select("id").eq("unsubscribe_token", token).maybeSingle();
-  if (!sub) return go("notfound");
+  if (!sub) return;
 
   const { error } = await sb.from("norm_feedback").upsert(
     { subscriber_token: token, url, vote, edition_date: date, category, title, organism: (title.split(" - ")[0] || "").trim() },
     { onConflict: "subscriber_token,url" }
   );
-  if (error) return go("error");
+  if (error) console.error("feedback upsert", error);
+  })();
+  // @ts-ignore EdgeRuntime is provided by the runtime
+  EdgeRuntime.waitUntil(work);
 
   return go(String(vote));
 });

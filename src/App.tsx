@@ -9,7 +9,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const EmailPreview = lazy(() => import("./pages/EmailPreview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const Gracias = lazy(() => import("./pages/Gracias"));
+import Gracias from "./pages/Gracias";
 
 const queryClient = new QueryClient();
 
