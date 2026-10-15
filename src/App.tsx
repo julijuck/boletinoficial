@@ -9,6 +9,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const EmailPreview = lazy(() => import("./pages/EmailPreview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Gracias = lazy(() => import("./pages/Gracias"));
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/preview-email" element={<EmailPreview />} />
+            <Route path="/gracias" element={<Gracias />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
