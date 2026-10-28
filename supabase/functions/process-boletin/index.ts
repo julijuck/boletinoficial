@@ -167,6 +167,7 @@ async function scrapeWithFirecrawl(firecrawlApiKey: string, boletinUrl: string):
       formats: ["markdown"],
       onlyMainContent: true,
       waitFor: 3000,
+      proxy: "basic",
     }),
   });
 
