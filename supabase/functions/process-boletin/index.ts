@@ -99,10 +99,52 @@ function parseSpanishDate(dateStr: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
+// Convert the Boletín HTML page into the markdown-ish format the parser expects:
+// detalleAviso anchors become [text](url) links and headings become # lines.
+function htmlToMarkdownish(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, n, inner) =>
+      "\n" + "#".repeat(Number(n)) + " " + String(inner).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() + "\n")
+    .replace(/<a[^>]*href="([^"]*detalleAviso[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, inner) =>
+      `[${String(inner).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()}](${href})`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+}
+
+function extractScrapedDate(markdown: string): string | null {
+  const normalizedMarkdown = markdown.replace(/\n+/g, " ");
+  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
+  return dateMatch ? parseSpanishDate(dateMatch[1]) : null;
+}
+
 async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   const urlDate = dateStr.replace(/-/g, "");
   const boletinUrl = `${BOLETIN_BASE_URL}/${urlDate}`;
   console.log(`Scraping Boletín Oficial at ${boletinUrl}...`);
+
+  try {
+    return await scrapeWithFirecrawl(firecrawlApiKey, boletinUrl);
+  } catch (err) {
+    console.log(`Firecrawl failed (${err instanceof Error ? err.message : err}). Falling back to direct fetch.`);
+  }
+
+  const res = await fetch(boletinUrl, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error(`Direct fetch failed [${res.status}]`);
+  const html = await res.text();
+  const markdown = htmlToMarkdownish(html);
+  const scrapedDate = extractScrapedDate(markdown);
+  console.log(`Scraped date from page (direct fetch): ${scrapedDate || "NOT FOUND"}`);
+  return { markdown, scrapedDate };
+}
+
+async function scrapeWithFirecrawl(firecrawlApiKey: string, boletinUrl: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   const response = await fetch(FIRECRAWL_URL, {
     method: "POST",
     headers: {
