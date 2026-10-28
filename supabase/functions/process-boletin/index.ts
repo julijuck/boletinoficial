@@ -99,10 +99,63 @@ function parseSpanishDate(dateStr: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
+// Convert the Boletín HTML page into the markdown-ish format the parser expects:
+// detalleAviso anchors become [text](url) links and headings become # lines.
+function htmlToMarkdownish(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, n, inner) =>
+      "\n" + "#".repeat(Number(n)) + " " + String(inner).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() + "\n")
+    .replace(/<a[^>]*href="([^"]*detalleAviso[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, inner) =>
+      `[${String(inner).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()}](${href})`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+}
+
+function extractScrapedDate(markdown: string): string | null {
+  const normalizedMarkdown = markdown.replace(/\n+/g, " ");
+  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
+  return dateMatch ? parseSpanishDate(dateMatch[1]) : null;
+}
+
 async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   const urlDate = dateStr.replace(/-/g, "");
   const boletinUrl = `${BOLETIN_BASE_URL}/${urlDate}`;
   console.log(`Scraping Boletín Oficial at ${boletinUrl}...`);
+
+  // Firecrawl can fail transiently (proxy errors); retry a couple of times before falling back.
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await scrapeWithFirecrawl(firecrawlApiKey, boletinUrl);
+    } catch (err) {
+      lastErr = err;
+      console.log(`Firecrawl attempt ${attempt} failed (${err instanceof Error ? err.message : err}).`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+  console.log("Firecrawl failed after 3 attempts. Falling back to direct fetch.");
+
+  const res = await fetch(boletinUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "es-AR,es;q=0.9",
+    },
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!res.ok) throw new Error(`Direct fetch failed [${res.status}]`);
+  const html = await res.text();
+  const markdown = htmlToMarkdownish(html);
+  const scrapedDate = extractScrapedDate(markdown);
+  console.log(`Scraped date from page (direct fetch): ${scrapedDate || "NOT FOUND"}`);
+  return { markdown, scrapedDate };
+}
+
+async function scrapeWithFirecrawl(firecrawlApiKey: string, boletinUrl: string): Promise<{ markdown: string; scrapedDate: string | null }> {
   const response = await fetch(FIRECRAWL_URL, {
     method: "POST",
     headers: {
@@ -114,6 +167,7 @@ async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): P
       formats: ["markdown"],
       onlyMainContent: true,
       waitFor: 3000,
+      proxy: "basic",
     }),
   });
 
@@ -124,16 +178,12 @@ async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): P
 
   const data = await response.json();
   const markdown = data.data?.markdown || data.markdown || "";
-  
+
   // Extract date - may be split across lines like "Edición del\n**26 de Febrero de 2026**"
-  const normalizedMarkdown = markdown.replace(/\n+/g, " ");
-  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
-  
-  
-  const scrapedDate = dateMatch ? parseSpanishDate(dateMatch[1]) : null;
-  
+  const scrapedDate = extractScrapedDate(markdown);
+
   console.log(`Scraped date from page: ${scrapedDate || "NOT FOUND"}`);
-  
+
   return { markdown, scrapedDate };
 }
 
