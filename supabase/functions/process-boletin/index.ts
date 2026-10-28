@@ -166,16 +166,12 @@ async function scrapeWithFirecrawl(firecrawlApiKey: string, boletinUrl: string):
 
   const data = await response.json();
   const markdown = data.data?.markdown || data.markdown || "";
-  
+
   // Extract date - may be split across lines like "Edición del\n**26 de Febrero de 2026**"
-  const normalizedMarkdown = markdown.replace(/\n+/g, " ");
-  const dateMatch = normalizedMarkdown.match(/Edici[oó]n del[\s#]*\*{0,2}(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})\*{0,2}/i);
-  
-  
-  const scrapedDate = dateMatch ? parseSpanishDate(dateMatch[1]) : null;
-  
+  const scrapedDate = extractScrapedDate(markdown);
+
   console.log(`Scraped date from page: ${scrapedDate || "NOT FOUND"}`);
-  
+
   return { markdown, scrapedDate };
 }
 
