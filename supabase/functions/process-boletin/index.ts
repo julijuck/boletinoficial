@@ -126,15 +126,26 @@ async function scrapeBoletinOficial(firecrawlApiKey: string, dateStr: string): P
   const boletinUrl = `${BOLETIN_BASE_URL}/${urlDate}`;
   console.log(`Scraping Boletín Oficial at ${boletinUrl}...`);
 
-  try {
-    return await scrapeWithFirecrawl(firecrawlApiKey, boletinUrl);
-  } catch (err) {
-    console.log(`Firecrawl failed (${err instanceof Error ? err.message : err}). Falling back to direct fetch.`);
+  // Firecrawl can fail transiently (proxy errors); retry a couple of times before falling back.
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await scrapeWithFirecrawl(firecrawlApiKey, boletinUrl);
+    } catch (err) {
+      lastErr = err;
+      console.log(`Firecrawl attempt ${attempt} failed (${err instanceof Error ? err.message : err}).`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 5000));
+    }
   }
+  console.log("Firecrawl failed after 3 attempts. Falling back to direct fetch.");
 
   const res = await fetch(boletinUrl, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    signal: AbortSignal.timeout(30000),
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "es-AR,es;q=0.9",
+    },
+    signal: AbortSignal.timeout(60000),
   });
   if (!res.ok) throw new Error(`Direct fetch failed [${res.status}]`);
   const html = await res.text();
